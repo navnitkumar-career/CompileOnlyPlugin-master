@@ -1,0 +1,119 @@
+import org.gradle.api.artifacts.maven.MavenDeployment
+
+plugins {
+	id "java-gradle-plugin"
+	id "com.gradle.plugin-publish" version "0.9.4"
+}
+
+apply plugin: 'groovy'
+apply plugin: 'maven'
+apply plugin: 'signing'
+
+def mvnName = 'CompileOnlyPlugin'
+def mvnUrl = 'http://coders-kitchen.github.com' // 404, maybe use https://github.com/coders-kitchen/CompileOnlyPlugin instead?
+def mvnDescription = 'Adds a compile only configuration to the Java plugin of Gradle'
+def pluginId = 'com.coders-kitchen.compileonlyplugin'
+
+repositories {
+	jcenter()
+}
+
+dependencies {
+	compile gradleApi()
+	compile localGroovy()
+}
+
+gradlePlugin {
+	plugins {
+		compileOnlyPlugin {
+			id = pluginId
+			implementationClass = "com.coderskitchen.compileonly.CompileOnlyPlugin"
+		}
+	}
+}
+
+task sourcesJar(type: Jar) {
+	from sourceSets.main.allSource
+	classifier = 'sources'
+	archiveName = archiveName.toLowerCase()
+}
+
+jar {
+	archiveName = archiveName.toLowerCase()
+}
+
+task javadocJar(type: Jar, dependsOn: groovydoc) {
+	from 'build/docs/groovydoc'
+	classifier = 'javadoc'
+	archiveName = archiveName.toLowerCase()
+}
+
+artifacts {
+	archives jar
+	archives javadocJar
+	archives sourcesJar
+}
+
+if (hasProperty('sonatypeUsername'))
+{
+	signing {
+		sign configurations.archives
+	}
+
+	uploadArchives {
+		repositories {
+			mavenDeployer {
+				beforeDeployment { MavenDeployment deployment -> signPom(deployment) }
+
+				repository(url: "https://oss.sonatype.org/service/local/staging/deploy/maven2/") {
+					authentication(userName: sonatypeUsername, password: sonatypePassword)
+				}
+				pom {
+					project {
+						name mvnName
+						packaging 'jar'
+						description mvnDescription
+						url mvnUrl
+
+						scm {
+							url 'scm:git@github:CodersKitchen/CompileOnlyPlugin.git'
+							connection 'scm:git@github:CodersKitchen/CompileOnlyPlugin.git'
+							developerConnection 'scm:git@github:CodersKitchen/CompileOnlyPlugin.git'
+						}
+
+						licenses {
+							license {
+								name 'The MIT License (MIT)'
+								url 'http://opensource.org/licenses/MIT'
+								distribution 'repo'
+							}
+						}
+
+
+						developers {
+							developer {
+								id 'peterdaum'
+								name 'Peter Daum'
+							}
+						}
+					}
+					artifactId = project.name.toLowerCase()
+				}
+			}
+		}
+	}
+}
+
+pluginBundle {
+	website = mvnUrl
+	vcsUrl = 'https://github.com/coders-kitchen/CompileOnlyPlugin'
+	description = mvnDescription
+	tags = ['compile', 'compileOnly', 'java']
+
+	plugins {
+		compileOnlyPlugin {
+			id = pluginId
+			displayName = mvnName
+		}
+	}
+}
